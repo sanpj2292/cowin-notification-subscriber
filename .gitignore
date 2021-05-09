@@ -14,12 +14,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
@@ -49,7 +48,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
-cover/
+pytestdebug.log
 
 # Translations
 *.mo
@@ -70,6 +69,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+doc/_build/
 
 # PyBuilder
 .pybuilder/
@@ -94,6 +94,9 @@ ipython_config.py
 #   install all needed dependencies.
 #Pipfile.lock
 
+# poetry
+#poetry.lock
+
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
 
@@ -105,13 +108,15 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
-.venv
+# .env
+.env/
+.venv/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+pythonenv*
 
 # Spyder project settings
 .spyderproject
@@ -134,5 +139,37 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
-# Cython debug symbols
-cython_debug/
+# operating system-related files
+# file properties cache/storage on macOS
+*.DS_Store
+# thumbnail cache on Windows
+Thumbs.db
+
+# profiling data
+.prof
+
+
+### react ###
+.DS_*
+logs
+**/*.backup.*
+**/*.back.*
+
+**node_modules
+**bower_components
+
+*.sublime*
+
+psd
+thumb
+sketch
+
+### Database ###
+*.accdb
+*.db
+*.dbf
+*.mdb
+*.pdb
+*.sqlite3
+
+**/Lib/site-packages
