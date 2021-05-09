@@ -9,7 +9,7 @@ from constants import LOC_BASE_URL, headers
 from sqlalchemy.orm import Session
 import json
 import db
-from db import DBDistrict, DBState, bulk_district_insert, bulk_state_insert, create_subscriber, get_db, get_states_all
+from db import DBDistrict, DBState, bulk_district_insert, bulk_state_insert, create_subscriber, get_db, get_district, get_states_all, get_distinct_districts
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -37,7 +37,7 @@ def insert_district_for_states():
                         district_name=district['district_name'],
                         state_id=i)
             dbDistricts.append(dbDistrict)
-    # bulk_district_insert(next(get_db()), dbDistricts)
+    bulk_district_insert(next(get_db()), dbDistricts)
 
 @app.on_event('startup')
 async def startup():
@@ -56,8 +56,8 @@ async def startup():
         for state in states['states']:
             dbState = DBState(state_id=state['state_id'], state_name=state['state_name'])
             dbStates.append(dbState)
+        bulk_state_insert(db, dbStates)
         insert_district_for_states()
-        # bulk_state_insert(db, dbStates)
 
 # @app.on_event('shutdown')
 # async def shutdown():

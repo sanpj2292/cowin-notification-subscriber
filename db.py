@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.sql.schema import ForeignKey
 from models import Subscriber
-from typing import List
+from typing import List, Tuple
 from sqlalchemy import Boolean, Column, Float, String, Integer, func, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 import datetime
@@ -21,7 +21,7 @@ class DBSubscriber(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(50), index=True)
-    district_id = Column(Integer, default=581)
+    district_id = Column(Integer, default=581, index=True)
     state_id = Column(Integer, default=32)
     active = Column(Boolean)
     created_date = Column(DateTime, default=datetime.datetime.now())
@@ -41,7 +41,7 @@ class DBDistrict(Base):
     district_name = Column(String(100), index=True)
     created_date = Column(DateTime, default=datetime.datetime.now())
 
-Base.metadata.drop_all(bind=engine)
+# Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 def get_db():
@@ -52,9 +52,12 @@ def get_db():
         db.close()
 
 def get_place(db: Session, email: str):
-    return db.query(DBSubscriber).where(DBSubscriber.email == email).first()
+    return db.query(DBSubscriber).filter(DBSubscriber.email == email).first()
 
 # Methods for interacting with the database
+def get_subscribers_by_district(db:Session, district_id:int):
+    return db.query(DBSubscriber).filter(DBDistrict.district_id == district_id).all()
+
 def get_subscribers(db: Session) -> List[DBSubscriber]:
     return db.query(DBSubscriber).all()
 
@@ -77,7 +80,11 @@ def bulk_district_insert(db: Session, districts: List[DBDistrict]):
 def get_states_all(db: Session) -> List[DBState]:
     return db.query(DBState).all()
 
-def group_by_district(db: Session):
-    subscribers_by_district = db.query(DBSubscriber.district_id, func.Count(DBSubscriber.district_id))\
-            .group_by(DBSubscriber.district_id)
-    return subscribers_by_district
+def get_distinct_districts(db: Session) -> Tuple[int]:
+    subscribers_by_district = db.query(DBSubscriber.district_id)\
+            .distinct().all()
+    subByDistList = list(zip(*subscribers_by_district))[0]
+    return subByDistList
+
+def get_district(db:Session, district:int) -> DBDistrict:
+    return db.query(DBDistrict).filter(DBDistrict.district_id == district).first()
