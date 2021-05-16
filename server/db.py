@@ -3,7 +3,7 @@ from sqlalchemy.orm import query, sessionmaker, Session
 from sqlalchemy.sql.expression import or_
 from sqlalchemy.sql.schema import ForeignKey
 from models import Subscriber, SubscriberPincodeModel, SubscriberAllModel
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from sqlalchemy import Boolean, Column, Float, String, Integer, func, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 import datetime
@@ -65,11 +65,14 @@ def get_subscribers(db: Session) -> List[DBSubscriber]:
     return db.query(DBSubscriber).all()
 
 def create_subscriber(db: Session, subscriber : Subscriber) -> DBSubscriber:
-    db_subscriber = DBSubscriber(**subscriber.dict())
-    db.add(db_subscriber)
-    db.commit()
-    db.refresh(db_subscriber)
-    return db_subscriber
+    db_subscriber = DBSubscriber(**subscriber.dict(), search_type="STDIS")
+    if check_subscription(db, [db_subscriber]):
+        db.add(db_subscriber)
+        db.commit()
+        db.refresh(db_subscriber)
+        return True
+    else:
+        return False
 
 def bulk_state_insert(db: Session, states: List[DBState]):
     db.bulk_save_objects(states, return_defaults=True)
@@ -99,14 +102,17 @@ def get_all_active_subscribers(db:Session, email: str):
 
 def delete_subscribers(db:Session, subscribers:List[Subscriber]):
     email = subscribers[0].email
-    db.begin()
-    db.query(DBSubscriber)\
+    data = db.query(DBSubscriber)\
         .filter(DBSubscriber.email == email)\
         .filter(DBSubscriber.state_id.in_([sub.state_id for sub in subscribers]))\
-        .filter(DBSubscriber.district_id.in_([sub.district_id for sub in subscribers]))\
-        .delete()
-    db.commit()
-    return True
+        .filter(DBSubscriber.district_id.in_([sub.district_id for sub in subscribers]))
+    if data.count > 0:
+        db.begin()
+        data.delete()
+        db.commit()
+        return True
+    else:
+        return None
 
 
 # Methods for interacting with the database
@@ -125,14 +131,42 @@ def get_district(db:Session, district:int) -> DBDistrict:
 ###### Pincode Subscription methods
 def delete_pincode_subscribers(db:Session, subscribers:List[SubscriberPincodeModel]):
     email = subscribers[0].email
-    db.begin()
-    db.query(DBSubscriber)\
+    data = db.query(DBSubscriber)\
         .filter(DBSubscriber.email == email)\
-        .filter(DBSubscriber.pincode.in_([sub.pincode for sub in subscribers]))\
-        .delete()
-    db.commit()
-    return True
+        .filter(DBSubscriber.pincode.in_([sub.pincode for sub in subscribers]))
+    if data.count > 0:
+        db.begin()
+        data.delete()
+        db.commit()
+        return True
+    else:
+        return None
 
 def insert_pincode_subscribers(db:Session, subscribers:List[DBSubscriber]):
-    db.bulk_save_objects(subscribers, return_defaults=True)
-    db.commit()
+    if check_subscription(db, subscribers):
+        db.bulk_save_objects(subscribers, return_defaults=True)
+        db.commit()
+        return True
+    else:
+        return False
+    
+def check_subscription(db: Session, subscribers: List[DBSubscriber]):
+    if len(subscribers)> 0:
+        email = subscribers[0].email
+        search_type = subscribers[0].search_type
+        data = None
+        emailFilter = db.query(DBSubscriber)\
+                .filter(DBSubscriber.email == email)
+        print(search_type)
+        if search_type == "STDIS":
+            data = emailFilter\
+                .filter(DBSubscriber.state_id.in_([sub.state_id for sub in subscribers]))\
+                .filter(DBSubscriber.district_id.in_([sub.district_id for sub in subscribers]))
+        elif search_type == "PINCD":
+            data = emailFilter\
+                .filter(DBSubscriber.pincode.in_([sub.pincode for sub in subscribers]))
+        else:
+            raise Exception('Search Type is wrong')
+        return data is None or data.count() == 0
+    else:
+        raise Exception('Input is wrong')

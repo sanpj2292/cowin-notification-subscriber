@@ -49,6 +49,11 @@ def delete_subscribe(subscribers: List[Subscriber], DB:Session=Depends(get_db)):
             return {
                 'isError': False
             }
+        else:
+            return {
+                'isError': True,
+                'message': 'Cannot be deleted'
+            }
     except Exception as ex:
         return {
             'isError': True,
@@ -60,9 +65,9 @@ def delete_subscribe(subscribers: List[Subscriber], DB:Session=Depends(get_db)):
 def subscribe(subscribeReqModel: SubscribeReqModel, response:Response, DB: Session = Depends(get_db)):
     try:
         subscriber = Subscriber(**subscribeReqModel.dict(), active=True)
-        create_subscriber(DB, subscriber=subscriber)
+        isSuccess = create_subscriber(DB, subscriber=subscriber)
         respDict = {
-            'isSubscriptionSuccess': True,
+            'isSubscriptionSuccess': isSuccess,
         }
         response.status_code = status.HTTP_200_OK
     except Exception as inst:
@@ -94,13 +99,13 @@ def pincode_subscribe(subscribers:List[SubscriberPincodeModel], DB:Session = Dep
     try:
         for sub in subscribers:
             dbSubs.append(DBSubscriber(**sub.dict(), active=True))
-        insert_pincode_subscribers(DB, dbSubs)
+        isSuccess = insert_pincode_subscribers(DB, dbSubs)
         return {
-            'isError': True
+            'isSubscriptionSuccess': isSuccess
         }
     except Exception as ex:
-        print(ex)
+        print(ex)  
         return {
-            'isError': False,
+            'isSubscriptionSuccess': False,
             'message': ex
         }
