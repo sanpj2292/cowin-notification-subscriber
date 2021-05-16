@@ -10,10 +10,13 @@ from sqlalchemy.orm import Session
 import json
 import db
 from db import DBDistrict, DBState, bulk_district_insert, bulk_state_insert, create_subscriber, get_db, get_district, get_states_all, get_distinct_districts
+from routers import v2 
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 states = {}
+
+app.include_router(v2.router)
 
 def insert_states_first_time():
     resp_states = requests.get(f'{LOC_BASE_URL}/states', headers=headers)

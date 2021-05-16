@@ -1,7 +1,8 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import query, sessionmaker, Session
+from sqlalchemy.sql.expression import or_
 from sqlalchemy.sql.schema import ForeignKey
-from models import Subscriber
+from models import Subscriber, SubscriberPincodeModel, SubscriberAllModel
 from typing import List, Tuple
 from sqlalchemy import Boolean, Column, Float, String, Integer, func, DateTime
 from sqlalchemy.ext.declarative import declarative_base
@@ -21,8 +22,10 @@ class DBSubscriber(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(50), index=True)
-    district_id = Column(Integer, default=581, index=True)
-    state_id = Column(Integer, default=32)
+    search_type=Column(String(5), index=True, default="STDIS")
+    pincode = Column(Integer)
+    district_id = Column(Integer)
+    state_id = Column(Integer)
     active = Column(Boolean)
     created_date = Column(DateTime, default=datetime.datetime.now())
     
@@ -76,6 +79,36 @@ def bulk_district_insert(db: Session, districts: List[DBDistrict]):
     db.bulk_save_objects(districts, return_defaults=True)
     db.commit()
 
+def get_all_active_subscribers(db:Session, email: str):
+    activeSubscribers = db.query(DBState.state_name, DBDistrict.district_name, DBSubscriber)\
+        .outerjoin(DBState, or_(DBState.state_id == DBSubscriber.state_id, DBSubscriber.state_id is None))\
+        .outerjoin(DBDistrict,or_( DBDistrict.district_id == DBSubscriber.district_id, DBSubscriber.district_id is None ))\
+        .filter(DBSubscriber.active == True)\
+        .filter(DBSubscriber.email == email)\
+        .all()
+    
+    subscribers = []
+    for activeSubscriber in activeSubscribers:
+        sub = SubscriberAllModel.from_orm(activeSubscriber['DBSubscriber'])
+        subscribers.append({
+            **sub.dict(),
+            'state_name': activeSubscriber['state_name'],
+            'district_name': activeSubscriber['district_name'],
+        })
+    return subscribers
+
+def delete_subscribers(db:Session, subscribers:List[Subscriber]):
+    email = subscribers[0].email
+    db.begin()
+    db.query(DBSubscriber)\
+        .filter(DBSubscriber.email == email)\
+        .filter(DBSubscriber.state_id.in_([sub.state_id for sub in subscribers]))\
+        .filter(DBSubscriber.district_id.in_([sub.district_id for sub in subscribers]))\
+        .delete()
+    db.commit()
+    return True
+
+
 # Methods for interacting with the database
 def get_states_all(db: Session) -> List[DBState]:
     return db.query(DBState).all()
@@ -88,3 +121,18 @@ def get_distinct_districts(db: Session) -> Tuple[int]:
 
 def get_district(db:Session, district:int) -> DBDistrict:
     return db.query(DBDistrict).filter(DBDistrict.district_id == district).first()
+
+###### Pincode Subscription methods
+def delete_pincode_subscribers(db:Session, subscribers:List[SubscriberPincodeModel]):
+    email = subscribers[0].email
+    db.begin()
+    db.query(DBSubscriber)\
+        .filter(DBSubscriber.email == email)\
+        .filter(DBSubscriber.pincode.in_([sub.pincode for sub in subscribers]))\
+        .delete()
+    db.commit()
+    return True
+
+def insert_pincode_subscribers(db:Session, subscribers:List[DBSubscriber]):
+    db.bulk_save_objects(subscribers, return_defaults=True)
+    db.commit()
