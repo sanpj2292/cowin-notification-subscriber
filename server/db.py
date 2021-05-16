@@ -157,7 +157,6 @@ def check_subscription(db: Session, subscribers: List[DBSubscriber]):
         data = None
         emailFilter = db.query(DBSubscriber)\
                 .filter(DBSubscriber.email == email)
-        print(search_type)
         if search_type == "STDIS":
             data = emailFilter\
                 .filter(DBSubscriber.state_id.in_([sub.state_id for sub in subscribers]))\
