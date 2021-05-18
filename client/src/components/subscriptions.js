@@ -94,9 +94,10 @@ const Subscriptions = props => {
                 throw new Error("Error occurred in deletion");
             }
         } catch (error) {
+            console.error(error);
             setMessage({
                 open: true,
-                msg: error
+                msg: error.message ? error.message : "Exception occurred"
             });
         } finally {
             setBackdrop(false);

@@ -45,6 +45,8 @@ def get_subscriptions(email:str, DB:Session = Depends(get_db)):
 @router.delete('/subscribe')
 def delete_subscribe(subscribers: List[Subscriber], DB:Session=Depends(get_db)):
     try:
+        print('Delete subscriptions')
+        print(subscribers)
         if delete_subscribers(DB, subscribers):
             return {
                 'isError': False

@@ -7,7 +7,7 @@ def runApp():
 
 if __name__ == '__main__':
     appProcess = Process(target=runApp)
-    # notifyProcess = Process(target=notifyAvailabilityByEmail)
+    notifyProcess = Process(target=notifyAvailabilityByEmail)
     appProcess.start()
-    # notifyProcess.start()
+    notifyProcess.start()
   
