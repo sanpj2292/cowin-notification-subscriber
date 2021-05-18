@@ -20,14 +20,6 @@ const useStyles = makeStyles((theme) => ({
 
 const Subscriptions = props => {
     const classes = useStyles();
-    /**
-     * "email": "shivasye92@gmail.com",
-        "district_id": 276,
-        "state_id": 16,
-        "active": true,
-        "state_name": "Karnataka",
-        "district_name": "Bangalore Rural"
-    */
     const [email, setEmail] = useState('');
     const gridRef = useRef();
     const [rowData, setRowData] = useState([]);
@@ -52,7 +44,7 @@ const Subscriptions = props => {
         try {
             setBackdrop(true);
             if (email) {
-                const { subscriptions } = await fetch(`/v2/subscriptions?email=${encodeURIComponent(email)}`, {
+                const { subscriptions } = await fetch(`/api/v2/subscriptions?email=${encodeURIComponent(email)}`, {
                     method: "GET",
                 }).then(res => res.json());
                 setRowData(subscriptions);
@@ -77,9 +69,9 @@ const Subscriptions = props => {
         try {
             setBackdrop(true);
             const subsList = [{...params.data}];
-            let url = '/v2/subscribe';
+            let url = '/api/v2/subscribe';
             if (params.data.search_type === 'PINCD'){
-                url = '/v2/pincode/subscribe';
+                url = '/api/v2/pincode/subscribe';
             }
             const delResp = await fetch(url, {
                 method: "DELETE",

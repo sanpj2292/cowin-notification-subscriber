@@ -173,3 +173,5 @@ sketch
 *.sqlite3
 
 **/Lib/site-packages
+### Removing Environment variables from being committed ###
+**.env

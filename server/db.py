@@ -12,7 +12,8 @@ import os
 
 # SqlAlchemy Setup
 # SQLALCHEMY_DATABASE_URL = 'sqlite:///./.data/db.sqlite3?check_same_thread=False'
-SQLALCHEMY_DATABASE_URL = f'postgresql://postgres:{os.getenv("POSTGRES_ACCOUNT_PWD")}@localhost/cowin_subscribe'
+# SQLALCHEMY_DATABASE_URL = f'postgresql://postgres:{os.getenv("POSTGRES_ACCOUNT_PWD")}@localhost/cowin_subscribe'
+SQLALCHEMY_DATABASE_URL = f'postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_PASSWORD")}@db:5432/cowin_subscribe'
 engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

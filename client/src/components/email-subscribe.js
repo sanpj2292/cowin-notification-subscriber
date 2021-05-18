@@ -80,7 +80,7 @@ const EmailSubscribe = props => {
 
     useEffect(() => {
         setBackdrop(true);
-        fetch('/v2/states', {method: 'GET'})
+        fetch('/api/v2/states', {method: 'GET'})
         .then(res => res.json())
         .then(res => {
             setStates(res.states);
@@ -102,7 +102,7 @@ const EmailSubscribe = props => {
         // Load districts
         if (state) {
             setBackdrop(true);
-            fetch(`/v2/districts/${state}`, {
+            fetch(`/api/v2/districts/${state}`, {
                 method: "GET"
             }).then(res => res.json())
             .then(res => {
@@ -129,7 +129,7 @@ const EmailSubscribe = props => {
                 state_id: state,
                 district_id: district
             };
-            let url = '/v2/subscribe';
+            let url = '/api/v2/subscribe';
             if (searchType === "PINCD") {
                 body = pincode.split(',').map(p => {
                     if (p.length !== 6) {
@@ -141,7 +141,7 @@ const EmailSubscribe = props => {
                         pincode: Number(p.trim()),
                     };
                 });
-                url = '/v2/pincode/subscribe';
+                url = '/api/v2/pincode/subscribe';
             }
             const resp = await fetch(url, {
                 method: 'POST',

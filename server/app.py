@@ -3,7 +3,7 @@ from multiprocessing import Process
 from background_task import notifyAvailabilityByEmail
 
 def runApp():
-    uvicorn.run('main:app', port=4200, reload=False)
+    uvicorn.run('main:app', host='server', port=4200, reload=False)
 
 if __name__ == '__main__':
     appProcess = Process(target=runApp)
