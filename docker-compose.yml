@@ -17,6 +17,7 @@ services:
         build: ./server
         env_file:
             - db.env
+        restart: always
         command: ["python", "app.py"]
         depends_on:
             db:
