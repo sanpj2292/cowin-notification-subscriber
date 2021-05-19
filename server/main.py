@@ -75,6 +75,13 @@ async def startup():
         bulk_state_insert(db, dbStates)
         insert_district_for_states()
 
+@app.get('/health')
+def health():
+    return ''
+
+@app.get('/ready')
+def ready():
+    return ''
 # @app.on_event('shutdown')
 # async def shutdown():
 #     await database.disconnect()

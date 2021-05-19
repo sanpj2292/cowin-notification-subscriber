@@ -1,2 +1,4 @@
 cowin-env
 .data
+logs
+*.log

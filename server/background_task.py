@@ -9,12 +9,25 @@ import time
 from email.message import EmailMessage, MIMEPart
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from db import DBDistrict, get_db, get_district, get_distinct_districts, get_subscribers_by_district\
+from db import DBDistrict, get_district, get_distinct_districts, get_subscribers_by_district\
     , get_subscribers, get_dis_state_nm
 import asyncio
 from logger_app import get_logger
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 logger = get_logger(__name__, needFileHandler=True)
+
+SQLALCHEMY_DATABASE_URL = f'postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_PASSWORD")}@{os.getenv("POSTGRES_HOST")}:5432/cowin_subscribe'
+engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def background(f):
     def wrapped(*args, **kwargs):

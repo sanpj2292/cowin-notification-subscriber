@@ -1,0 +1,10 @@
+
+steps:
+- name: "gcr.io/cloud-builders/gke-deploy:stable"
+  args:
+  - run
+  - --filename=deployment.yaml
+  - --location=asia-south1-a
+  - --cluster=cowin-notif-subscriber
+  timeout: 1200s
+timeout: 1200s
