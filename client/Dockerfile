@@ -1,8 +1,10 @@
 # Stage 0, "build-stage", based on Node.js, to build and compile the frontend
 FROM node:12.18.4-alpine3.12 as build-stage
+ARG env=production
 ENV current_work_dir=/usr/src/app/client/
 WORKDIR ${current_work_dir}
 COPY package*.json ${current_work_dir}
+COPY ./nginx/$env/nginx.conf/ ${current_work_dir}nginx/
 RUN npm install
 COPY ./ ${current_work_dir}
 RUN npm run build
