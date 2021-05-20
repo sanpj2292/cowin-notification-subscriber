@@ -17,6 +17,8 @@ services:
         build: ./server
         env_file:
             - db.env
+        ports:
+            - 4200:4200
         restart: always
         # command: ["python", "app.py"]
         # depends_on:
@@ -27,8 +29,6 @@ services:
         # networks:
         #     - GCP
         #     - cowin_sub_network
-        ports:
-            - 4200:4200
     # db:
     #     image: postgres:13-alpine
     #     container_name: cowin_sub_db
