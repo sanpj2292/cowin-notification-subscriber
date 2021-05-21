@@ -13,11 +13,6 @@ import os
 # SqlAlchemy Setup
 # SQLALCHEMY_DATABASE_URL = 'sqlite:///./.data/db.sqlite3?check_same_thread=False'
 # SQLALCHEMY_DATABASE_URL = f'postgresql://postgres:{os.getenv("POSTGRES_ACCOUNT_PWD")}@localhost/cowin_subscribe'
-SQLALCHEMY_DATABASE_URL = f'postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_PASSWORD")}@{os.getenv("POSTGRES_HOST")}:5432/cowin_subscribe'
-engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
 Base = declarative_base()
 
 # A SQLAlchemny ORM Subscribers
@@ -48,10 +43,15 @@ class DBDistrict(Base):
     district_name = Column(String(100), index=True)
     created_date = Column(DateTime, default=datetime.datetime.now())
 
-if not database_exists(engine.url):
-    create_database(engine.url)
-# Base.metadata.drop_all(bind=engine)
-Base.metadata.create_all(bind=engine)
+if __name__ == '__main__':
+    SQLALCHEMY_DATABASE_URL = f'postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_PASSWORD")}@{os.getenv("POSTGRES_HOST")}:5432/cowin_subscribe'
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    if not database_exists(engine.url):
+        create_database(engine.url)
+    # Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = SessionLocal()
