@@ -175,3 +175,4 @@ sketch
 **/Lib/site-packages
 ### Removing Environment variables from being committed ###
 **.env
+db_data
