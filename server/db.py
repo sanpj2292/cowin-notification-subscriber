@@ -27,6 +27,7 @@ class DBSubscriber(Base):
     email = Column(String(50), index=True)
     search_type=Column(String(5), index=True, default="STDIS")
     pincode = Column(Integer)
+    min_age = Column(Integer, default=0)
     district_id = Column(Integer, ForeignKey('districts.district_id'))
     state_id = Column(Integer, ForeignKey('states.state_id'))
     active = Column(Boolean)
@@ -113,6 +114,7 @@ def delete_subscribers(db:Session, subscribers:List[Subscriber]):
         .filter(DBSubscriber.email == email)\
         .filter(DBSubscriber.state_id.in_([sub.state_id for sub in subscribers]))\
         .filter(DBSubscriber.district_id.in_([sub.district_id for sub in subscribers]))\
+        .filter(DBSubscriber.min_age.in_([sub.min_age for sub in subscribers]))\
         .delete()
     db.commit()
     return data > 0
@@ -144,6 +146,7 @@ def delete_pincode_subscribers(db:Session, subscribers:List[SubscriberPincodeMod
     data = db.query(DBSubscriber)\
         .filter(DBSubscriber.email == email)\
         .filter(DBSubscriber.pincode.in_([sub.pincode for sub in subscribers]))\
+        .filter(DBSubscriber.min_age.in_([sub.min_age for sub in subscribers]))\
         .delete()
     db.commit()
     return data > 0
@@ -160,9 +163,11 @@ def check_subscription(db: Session, subscribers: List[DBSubscriber]):
     if len(subscribers)> 0:
         email = subscribers[0].email
         search_type = subscribers[0].search_type
+        min_age = subscribers[0].min_age
         data = None
         emailFilter = db.query(DBSubscriber)\
-                .filter(DBSubscriber.email == email)
+                .filter(DBSubscriber.email == email)\
+                .filter(DBSubscriber.min_age == min_age)
         if search_type == "STDIS":
             data = emailFilter\
                 .filter(DBSubscriber.state_id.in_([sub.state_id for sub in subscribers]))\

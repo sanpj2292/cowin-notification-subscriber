@@ -6,6 +6,8 @@ services:
         depends_on:
             - db
             - server
+        volumes:
+            - ./client:/usr/cowin/client
         ports:
             - 80:80
         networks:
@@ -21,6 +23,8 @@ services:
             - 4200:4200
         restart: always
         # command: ["python", "app.py"]
+        volumes:
+            - ./server:/usr/cowin/server
         depends_on:
             db:
                 condition: service_healthy
@@ -36,6 +40,7 @@ services:
         restart: always
         volumes:
             - ./db_data:/var/lib/postgresql/data
+            # - ./pgscripts/:/docker-entrypoint-initdb.d/
         networks:
             - cowin_sub_network
         ports:

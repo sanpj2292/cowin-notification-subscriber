@@ -14,6 +14,7 @@ graphql-core==2.3.2
 graphql-relay==2.0.1
 greenlet==1.1.0
 h11==0.12.0
+htmlmin==0.1.12
 idna==2.10
 itsdangerous==1.1.0
 Jinja2==2.11.3

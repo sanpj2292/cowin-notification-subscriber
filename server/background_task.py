@@ -1,10 +1,10 @@
 import requests
 import json
 import datetime
-from constants import BASE_URL, headers
+from constants import BASE_URL, headers, emailDistrictColumns, emailPincodeColumns
 import os
 import smtplib, ssl
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 import time
 from email.message import EmailMessage, MIMEPart
 from email.mime.multipart import MIMEMultipart
@@ -16,12 +16,15 @@ from logger_app import get_logger
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from random import randint, uniform
+from jinja2 import Environment, FileSystemLoader, escape
+import htmlmin
 
 logger = get_logger(__name__, needFileHandler=True)
 
 SQLALCHEMY_DATABASE_URL = f'postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_PASSWORD")}@db:5432/cowin_subscribe'
 engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+env = Environment(loader=FileSystemLoader('%s/templates/' % os.path.dirname(__file__)))
 
 def getMailerPwd():
     try:
@@ -34,6 +37,7 @@ def getMailerPwd():
         else:
             return mailerEnv
     except Exception as e:
+        logger.error('Error occurred at MailerPwd')
         logger.error(e)
 
 def get_db():
@@ -99,22 +103,25 @@ def emailNotifier(dbGen, prevAvailibilitySumDict: Dict[int, int]):
 def notifyAvailabilityByEmail():
     prev = {}
     mailerPwd = getMailerPwd()
+    maxMins = int(os.getenv('MAX_MINUTES', 2))
     while True:
         try:
             # emailNotifier(get_db(), prev)
             emailDataDict = emailNotifierV2(get_db(), prev)
             emailContentDict = prepareEmailContent(emailDataDict)
             sendEmailV2(emailContentDict, mailerPwd)
+        except Exception as ex:
+            logger.error('Error in notifyAvailability while loop')
+            logger.error(ex)
+        finally:
             # shortening the time & introducing more randomization
-            mins = uniform(1, os.getenv('MAX_MINUTES') or 2)
+            mins = uniform(1, maxMins)
             round_mins = round(mins, 3)
-            sleepTimeInSecs = randint(60, 60*round_mins)
+            sleepTimeInSecs = uniform(60, 60*round_mins)
             logger.info(f'Going to sleep... for {sleepTimeInSecs}s')
             time.sleep(sleepTimeInSecs)
-        except Exception as ex:
-            logger.error(ex)
 
-def searchForAvailability(param:int, code:str="STDIS") -> Tuple[List[any], int]:
+def searchForAvailability(param:int, code:str="STDIS", min_age:int=0) -> Tuple[List[any], int]:
     logger.info('Availability Search begins')
     now = datetime.date.today()
     formattedNow = now.strftime("%d-%m-%Y")
@@ -131,8 +138,13 @@ def searchForAvailability(param:int, code:str="STDIS") -> Tuple[List[any], int]:
     availabilitySum = 0
     for session in sessions:
         if session['available_capacity'] > 0:
-            availableSessions.append(session)
-            availabilitySum += session['available_capacity']
+            if (session['min_age_limit'] == min_age) or min_age == 0:
+                # min_age_limit - For age filter
+                # "available_capacity": 50,
+                # "available_capacity_dose1": 25,
+                # "available_capacity_dose2": 25,
+                availableSessions.append(session)
+                availabilitySum += session['available_capacity']
     logger.info('Availability search ends')
     return (availableSessions, availabilitySum)
 
@@ -153,7 +165,7 @@ def emailNotifierV2(dbGen, prevAvailabilitySumDict: Dict[str, Dict[str, Dict[int
              visited_params[searchType].get(param) is None)):
             
             # requesting data from a district or pincode for the first time
-            availSessions, availSum = searchForAvailability(param, dbSub.search_type)
+            availSessions, availSum = searchForAvailability(param, dbSub.search_type, dbSub.min_age)
             visited_params[searchType] = { **visited_params.get(searchType, {}), **dict(zip([param], [(availSessions, availSum)])) }
         # Condition to check available and to also check prevAvailability with current one
         if len(visited_params[searchType][param][0]) > 0:
@@ -161,7 +173,10 @@ def emailNotifierV2(dbGen, prevAvailabilitySumDict: Dict[str, Dict[str, Dict[int
             pD = {}
             availableSum = visited_params[searchType][param][1]
             
-            pD[param] = visited_params[searchType][param][1]
+            pD[param] = {
+                'sessions': visited_params[searchType][param][0], 
+                'availabilitySum': availableSum
+            }
             sT[searchType] = pD
             # if (
             #     email not in prevAvailabilitySumDict or 
@@ -184,7 +199,7 @@ def emailNotifierV2(dbGen, prevAvailabilitySumDict: Dict[str, Dict[str, Dict[int
                 dataCollectDict[email] = { **dataCollectDict[email], **sT }
             elif param not in prevAvailabilitySumDict[email][searchType] or (
                 param in prevAvailabilitySumDict[email][searchType] and 
-                prevAvailabilitySumDict[email][searchType][param] != availableSum
+                prevAvailabilitySumDict[email][searchType][param]['availabilitySum'] != availableSum
             ):
                 prevAvailabilitySumDict[email][searchType] = {
                     **prevAvailabilitySumDict[email][searchType], 
@@ -202,98 +217,109 @@ def emailNotifierV2(dbGen, prevAvailabilitySumDict: Dict[str, Dict[str, Dict[int
                         **dataCollectDict.get(email, {}).get(searchType, {}), 
                         **sT.get(searchType)
                     }
-        logger.debug(prevAvailabilitySumDict)
+        # logger.debug(prevAvailabilitySumDict)
     return dataCollectDict
 
 
 def prepareEmailContent(emailSearchTypeParamsDict:Dict[str, Dict[str, Dict[int, int]]]) -> Dict[str, str]:
     contentDict = {}
+    
     for email, searchTypeDict in emailSearchTypeParamsDict.items():
-        availabilityContent = ''
-        
         pincodes = []
-        if searchTypeDict.get("PINCD") is not None:
-            # pincodes = '\n'.join([f'<td>{p}</td><td>{av}</td>' for p, av in searchTypeDict["PINCD"].items()])
-            pincodes = '\n'.join([f'<tr><td>{p}</td><td>{av}</td></tr>' for p, av in searchTypeDict["PINCD"].items()])
-            availabilityContent += 'Pincodes Availability:\n' + pincodes
-        pincodeTable = f'''
-            <br>
-            <table style="border: black 0.5px;">
-                <thead>
-                    <tr>
-                        <th>Pincode</th>
-                        <th>Availability</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {pincodes}
-                </tbody>
-            </table>
-        ''' if len (pincodes) > 0 else ''
-        
         districts = []
-        if searchTypeDict.get("STDIS") is not None:
-            db = next(get_db())
-            disList = []
-            for d,av in searchTypeDict["STDIS"].items():
-                dDict = get_dis_state_nm(db, d)
-                # disList.append(f"{dDict['district_name']}, {dDict['state_name']}: {av}")
-                disList.append(f"<tr><td>{dDict['district_name']}</td><td>{dDict['state_name']}</td><td>{av}</td></tr>")
-            districts = '\n'.join(disList)
-            availabilityContent += '\n\n' if availabilityContent else '' + 'District Availability:\n' + districts
+        for _, availDict in searchTypeDict.get("PINCD", {}).items():
+            if 'sessions' in availDict:
+                pincodes.extend(availDict['sessions'])
+        for _, availDict in searchTypeDict.get("STDIS", {}).items():
+            if 'sessions' in availDict:
+                districts.extend(availDict['sessions'])
+        # pincodes = [*availDict['sessions']  for _, availDict in searchTypeDict.get("PINCD", {}).items()]
+        # districts = [*availDict['sessions']  for _, availDict in searchTypeDict.get("STDIS", {}).items()]
+        # districts = searchTypeDict.get("STDIS", []).values()
+        template = env.get_template('email.html')
+        outHtml = template.render(
+            disColumnMap=emailDistrictColumns,
+            pinColumnMap=emailPincodeColumns,
+            disData=districts,
+            pinData=pincodes
+        )
+        # escapedHtmlStr = str(escape(outHtml))
+        contentDict[email] = htmlmin.minify(outHtml, remove_empty_space=True)
+        # availabilityContent = ''
         
-        disTable = f'''
-            <br>
-            <table style="border: black 0.5px;">
-                <thead>
-                    <tr>
-                        <th>District</th>
-                        <th>State</th>
-                        <th>Availability</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {districts}
-                </tbody>
-            </table>
-        ''' if len(districts) > 0 else ''
+        # pincodes = []
+        # if searchTypeDict.get("PINCD") is not None:
+        #     # pincodes = '\n'.join([f'<td>{p}</td><td>{av}</td>' for p, av in searchTypeDict["PINCD"].items()])
+        #     pincodes = '\n'.join([f'<tr><td>{p}</td><td>{av}</td></tr>' for p, av in searchTypeDict["PINCD"].items()])
+        #     availabilityContent += 'Pincodes Availability:\n' + pincodes
+        # pincodeTable = f'''
+        #     <br>
+        #     <table style="border: black 0.5px;">
+        #         <thead>
+        #             <tr>
+        #                 <th>Pincode</th>
+        #                 <th>Availability</th>
+        #             </tr>
+        #         </thead>
+        #         <tbody>
+        #             {pincodes}
+        #         </tbody>
+        #     </table>
+        # ''' if len (pincodes) > 0 else ''
         
+        # districts = []
+        # if searchTypeDict.get("STDIS") is not None:
+        #     db = next(get_db())
+        #     disList = []
+        #     for d,av in searchTypeDict["STDIS"].items():
+        #         dDict = get_dis_state_nm(db, d)
+        #         # disList.append(f"{dDict['district_name']}, {dDict['state_name']}: {av}")
+        #         disList.append(f"<tr><td>{dDict['district_name']}</td><td>{dDict['state_name']}</td><td>{av}</td></tr>")
+        #     districts = '\n'.join(disList)
+        #     availabilityContent += '\n\n' if availabilityContent else '' + 'District Availability:\n' + districts
         
-        contentDict[email] = f'''
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta http-equiv="X-UA-Compatible" content="IE=edge">
-            <style type="text/css" media="screen">
-                               
-                table, th, td {{ border: 1px solid black; border-collapse: collapse; }}
-                th, td {{ padding: 2px; }}
-
-            </style>
-        </head>
-        <body>
-            <p>
-                Hi,<br>
-                This is an automated message from CoWin Notification Service.<br>
-                Currently some windows are open for vaccination scheduling.<br>
-                Hurry up and book your slots.
-            </p>
-            {disTable + pincodeTable}
-            <p><strong>Note</strong>: Please do not reply to this mailer.</p>
-        </body>
-        </html>
-        '''
+        # disTable = f'''
+        #     <br>
+        #     <table style="border: black 0.5px;">
+        #         <thead>
+        #             <tr>
+        #                 <th>District</th>
+        #                 <th>State</th>
+        #                 <th>Availability</th>
+        #             </tr>
+        #         </thead>
+        #         <tbody>
+        #             {districts}
+        #         </tbody>
+        #     </table>
+        # ''' if len(districts) > 0 else ''
+        
         
         # contentDict[email] = f'''
-        #     Hi,
-        #         This is an automated message from CoWin Notification Service
-        #         Currently some windows are open for vaccination scheduling.
-        #         Hurry up and book your slots.
+        # <html lang="en">
+        # <head>
+        #     <meta charset="UTF-8">
+        #     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        #     <style type="text/css" media="screen">
+                               
+        #         table, th, td {{ border: 1px solid black; border-collapse: collapse; }}
+        #         th, td {{ padding: 2px; }}
 
+        #     </style>
+        # </head>
+        # <body>
+        #     <p>
+        #         Hi,<br>
+        #         This is an automated message from CoWin Notification Service.<br>
+        #         Currently some windows are open for vaccination scheduling.<br>
+        #         Hurry up and book your slots.
+        #     </p>
         #     {disTable + pincodeTable}
-        
-        #     Note: Please do not reply to this mailer.
+        #     <p><strong>Note</strong>: Please do not reply to this mailer.</p>
+        # </body>
+        # </html>
         # '''
+        
     return contentDict
 
 
@@ -303,7 +329,7 @@ def sendEmailV2(emailSubDict:Dict[str, str], mailerPwd: str):
         port = 587  # For starttls
         smtp_server = "smtp.gmail.com"
         sender_email = os.getenv('COWIN_EMAILER_EMAIL')
-        for email, content in emailSubDict.items():    
+        for email, content in emailSubDict.items():
             with smtplib.SMTP(smtp_server, port) as server:
                 context = ssl.create_default_context()
                 message = MIMEMultipart(
@@ -318,6 +344,7 @@ def sendEmailV2(emailSubDict:Dict[str, str], mailerPwd: str):
                     server.sendmail(sender_email, email, message.as_string())
                     logger.info(f'Sent email to {email}')
                 except Exception as e:
+                    logger.error('Error while sending mail')
                     logger.error(e)
                 finally:
                     del message['To']

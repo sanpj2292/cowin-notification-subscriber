@@ -1,0 +1,73 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <style type="text/css" media="screen">
+                        
+        table, th, td { border: 1px solid black; border-collapse: collapse; }
+        th, td { padding: 2px; }
+
+    </style>
+</head>
+<body>
+    <strong>FROM LOCAL TESTING</strong>
+    <p>
+        Hi,<br>
+        This is an automated message from CoWin Notification Service.<br>
+        Currently some windows are open for vaccination scheduling.<br>
+        Hurry up and book your slots.
+    </p>
+
+    {% if disData|length > 0 %}
+        <h3>District Availability:</h3>
+        <table>
+            <thead>
+            <tr>
+                {% for discol in disColumnMap %}
+                <th>
+                {{ discol }}
+                </th>
+                {% endfor %}
+            </tr>
+
+            </thead>
+            <tbody>
+            {% for disRow in disData %}
+            <tr>
+                {% for _, col in disColumnMap.items() %}
+                    <td>{{disRow[col]}}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    {% if pinData|length > 0 %}
+        <h3>Pincode Availability:</h3>
+        <table>
+            <thead>
+            <tr>
+                {% for pincol in pinColumnMap %}
+                <th>
+                {{ pincol }}
+                </th>
+                {% endfor %}
+            </tr>
+
+            </thead>
+            <tbody>
+            {% for pinRow in pinData %}
+            <tr>
+                {% for _, col in pinColumnMap.items() %}
+                    <td>{{pinRow[col]}}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+    
+    <p><strong>Note</strong>: Please do not reply to this mailer.</p>
+</body>
+</html>

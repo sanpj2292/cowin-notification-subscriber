@@ -55,6 +55,7 @@ def get_subscriptions(email:str, DB:Session = Depends(get_db)):
     try:
         logger.info('Get Subscriptions method start')
         resp = get_all_active_subscribers(DB, email)
+        logger.info('Get Subscriptions method ends')
         return {
             'subscriptions': resp
         }
@@ -111,7 +112,7 @@ def subscribe(subscribeReqModel: SubscribeReqModel, response:Response, DB: Sessi
 
 
 @router.delete('/pincode/subscribe')
-def delete_subscribe(subscribers: List[SubscriberPincodeModel], DB:Session=Depends(get_db)):
+def delete_pincode_subscribe(subscribers: List[SubscriberPincodeModel], DB:Session=Depends(get_db)):
     try:
         logger.info('Delete Pincode Subscriptions method start')
         if delete_pincode_subscribers(DB, subscribers):
@@ -140,7 +141,7 @@ def pincode_subscribe(subscribers:List[SubscriberPincodeModel], DB:Session = Dep
         for sub in subscribers:
             dbSubs.append(DBSubscriber(**sub.dict(), active=True))
         isSuccess = insert_pincode_subscribers(DB, dbSubs)
-        logKeyword = f'{"un" if not isSuccess else ""}successfully'
+        logKeyword = f'{"Uns" if not isSuccess else "S"}uccessfully'
         logger.info(f'Pincode Subscribe method {logKeyword} ends')
         return {
             'isSubscriptionSuccess': isSuccess

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Container, Grid, TextField, FormControlLabel, Radio, RadioGroup,
-MenuItem, Select, FormControl, InputLabel, Button, Box, Paper, CardMedia, Card, CardContent, CardActions, Backdrop, CircularProgress, IconButton, Snackbar } from '@material-ui/core';
+MenuItem, Select, FormControl, InputLabel, Button, Box, Paper, CardMedia, Card, CardContent, CardActions, Backdrop, CircularProgress, IconButton, Snackbar, FormLabel } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import CloseIcon from '@material-ui/icons/Close';
 
@@ -44,6 +44,7 @@ const EmailSubscribe = props => {
     const classes = useStyles();
     const [backdrop, setBackdrop] = useState(false);
     const [searchType, setSearchType] = useState('');
+    const [minAge, setMinAge] = useState('0');
     const handleSearchTypeChange = e => {
         setSearchType(e.target.value);
     }
@@ -55,6 +56,7 @@ const EmailSubscribe = props => {
         setDistrict('');
         setDistricts('');
         setPincode('');
+        setMinAge('0');
     }
 
     const [districts, setDistricts] = useState([]);
@@ -76,6 +78,9 @@ const EmailSubscribe = props => {
 
     const handlePincodeChange = (e) => {
         setPincode(e.target.value);
+    }
+    const handleMinAgeChange = (e) => {
+        setMinAge(e.target.value);
     }
 
     useEffect(() => {
@@ -127,7 +132,8 @@ const EmailSubscribe = props => {
             let body = {
                 email,
                 state_id: state,
-                district_id: district
+                district_id: district,
+                min_age: Number(minAge)
             };
             let url = '/api/v2/subscribe';
             if (searchType === "PINCD") {
@@ -139,6 +145,7 @@ const EmailSubscribe = props => {
                         email,
                         search_type: searchType,
                         pincode: Number(p.trim()),
+                        min_age: Number(minAge)
                     };
                 });
                 url = '/api/v2/pincode/subscribe';
@@ -210,7 +217,7 @@ const EmailSubscribe = props => {
             <CircularProgress color="inherit" />
         </Backdrop>
         <Card style={{width: '30vw', }}>
-            <CardMedia image={'3d-corona-vaccine.jpg'} className={classes.media} title="Corona Vaccine"/>
+            {/* <CardMedia image={'3d-corona-vaccine.jpg'} className={classes.media} title="Corona Vaccine"/> */}
             <CardContent>
                 <Grid container justify='center' alignItems='center' direction='row' >
                     <Container>
@@ -232,6 +239,16 @@ const EmailSubscribe = props => {
                                         onChange={onEmailChange}
                                     />
                                 </FormControl>
+                            </Grid>
+                            <Grid item>
+                                <FormLabel component="menu">Minimum Age to get Vaccinated</FormLabel>
+                                <RadioGroup aria-label="age" name="age" value={minAge} onChange={handleMinAgeChange}>
+                                    <Grid direction='row'>
+                                        <FormControlLabel value="18" control={<Radio />} label="18" />
+                                        <FormControlLabel value="45" control={<Radio />} label="45" />
+                                        <FormControlLabel value="0" control={<Radio />} label="None" />
+                                    </Grid>
+                                </RadioGroup>
                             </Grid>
                             <Grid item>
                                 <RadioGroup aria-label="quiz" name="quiz" value={searchType} onChange={handleSearchTypeChange}>

@@ -151,6 +151,7 @@ const Subscriptions = props => {
                     {/* <AgGridColumn field="email" headerName='Email' sortable={ true } filter={ true }></AgGridColumn> */}
                     <AgGridColumn field="state_name" headerName='State' sortable={ true } filter={ true }></AgGridColumn>
                     <AgGridColumn field="district_name" headerName='District' sortable={ true } filter={ true }></AgGridColumn>
+                    <AgGridColumn field="min_age" headerName='Min. Age' sortable={ true } filter={ true }></AgGridColumn>
                     <AgGridColumn field="active" headerName='Subscription Status' sortable={ true } filter={ true }
                         cellRendererFramework={params => {
                             return <IconButton onClick={() => onDeleteSubscription(params)}>
@@ -167,6 +168,7 @@ const Subscriptions = props => {
                 <AgGridReact ref={gridRef} rowData={rowData.filter(d => d.search_type === "PINCD")} >
                     {/* <AgGridColumn field="email" headerName='Email' sortable={ true } filter={ true }></AgGridColumn> */}
                     <AgGridColumn field="pincode" headerName='Pincode' sortable={ true } filter={ true }></AgGridColumn>
+                    <AgGridColumn field="min_age" headerName='Min. Age' sortable={ true } filter={ true }></AgGridColumn>
                     <AgGridColumn field="active" headerName='Subscription Status' sortable={ true } filter={ true }
                         cellRendererFramework={params => {
                             return <IconButton onClick={() => onDeleteSubscription(params)}>
