@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  server:
+    image: sanpj2292/cowin-subscribe-server:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: [node.role == manager]
+    ports:
+      - 4200:4200
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: /run/secrets/db_pass
+      COWIN_EMAILER_EMAIL: mailer.cowin@gmail.com
+      COWIN_MAILER_PWD: /run/secrets/mailpass
+      MAX_MINUTES: 2.5
+    secrets:
+      - db_pass
+      - source: mailer_pass
+        target: mailpass
+        mode: 0400
+    depends_on:
+      - db
+    networks:
+      - app
+
+  db:
+    image: sanpj2292/cowin-subscriber-db:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: [node.role == worker]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: /run/secrets/db_pass
+    secrets:
+      - db_pass
+      - mailer_pass
+    volumes:
+      - data-volume:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app
+
+  client:
+    image: sanpj2292/cowin-subscriber-client:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: [node.role == worker]
+    ports:
+      - 80:80
+    depends_on:
+      - db
+      - server
+    networks:
+      - app
+
+networks:
+  app:
+    driver: overlay
+
+secrets:
+  db_pass:
+    file: ./secrets/dbpass.txt
+  mailer_pass:
+    file: ./secrets/mailerpass.txt
+
+volumes:
+  data-volume:
+    driver: local

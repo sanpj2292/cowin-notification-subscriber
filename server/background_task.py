@@ -15,12 +15,26 @@ import asyncio
 from logger_app import get_logger
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from random import randint, uniform
 
 logger = get_logger(__name__, needFileHandler=True)
 
 SQLALCHEMY_DATABASE_URL = f'postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_PASSWORD")}@db:5432/cowin_subscribe'
 engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def getMailerPwd():
+    try:
+        mailerEnv = os.getenv('COWIN_MAILER_PWD')
+        if mailerEnv.startswith('/run') :
+            #We are getting from a secrets file
+            with open(os.getenv('COWIN_MAILER_PWD'), 'r') as f:
+                mailerPwd = f.readlines()[0]
+                return mailerPwd
+        else:
+            return mailerEnv
+    except Exception as e:
+        logger.error(e)
 
 def get_db():
     db = SessionLocal()
@@ -84,15 +98,19 @@ def emailNotifier(dbGen, prevAvailibilitySumDict: Dict[int, int]):
 
 def notifyAvailabilityByEmail():
     prev = {}
+    mailerPwd = getMailerPwd()
     while True:
         try:
             # emailNotifier(get_db(), prev)
             emailDataDict = emailNotifierV2(get_db(), prev)
             emailContentDict = prepareEmailContent(emailDataDict)
-            
-            sendEmailV2(emailContentDict)
-            logger.info('Going to sleep...')
-            time.sleep(30)
+            sendEmailV2(emailContentDict, mailerPwd)
+            # shortening the time & introducing more randomization
+            mins = uniform(1, os.getenv('MAX_MINUTES') or 2)
+            round_mins = round(mins, 3)
+            sleepTimeInSecs = randint(60, 60*round_mins)
+            logger.info(f'Going to sleep... for {sleepTimeInSecs}s')
+            time.sleep(sleepTimeInSecs)
         except Exception as ex:
             logger.error(ex)
 
@@ -279,28 +297,29 @@ def prepareEmailContent(emailSearchTypeParamsDict:Dict[str, Dict[str, Dict[int, 
     return contentDict
 
 
-def sendEmailV2(emailSubDict:Dict[str, str]):
+def sendEmailV2(emailSubDict:Dict[str, str], mailerPwd: str):
     if emailSubDict:
         logger.info(f'Send EmailV2 method started')
         port = 587  # For starttls
         smtp_server = "smtp.gmail.com"
         sender_email = os.getenv('COWIN_EMAILER_EMAIL')
-        password = os.getenv('COWIN_MAILER_PWD')
-        # message = EmailMessage()
         for email, content in emailSubDict.items():    
-            context = ssl.create_default_context()
             with smtplib.SMTP(smtp_server, port) as server:
+                context = ssl.create_default_context()
                 message = MIMEMultipart(
                     "alternative", None, [MIMEText(content,'html')])
                 
                 message['To'] = email
                 message['Subject'] = 'Availability of slots to book in CoWin App'
                 message['From'] = sender_email
-                # message.set_content(content, subtype='html')
-                server.starttls(context=context)
-                server.login(sender_email, password)
-                server.sendmail(sender_email, email, message.as_string())
-                del message['To']
-                logger.info(f'Sent email to {email}')
+                try:
+                    server.starttls(context=context)
+                    server.login(sender_email, mailerPwd)
+                    server.sendmail(sender_email, email, message.as_string())
+                    logger.info(f'Sent email to {email}')
+                except Exception as e:
+                    logger.error(e)
+                finally:
+                    del message['To']
     else:
         logger.info('Currently there are no emails to be sent due to no change in availability')

@@ -176,3 +176,6 @@ sketch
 ### Removing Environment variables from being committed ###
 **.env
 db_data
+awskeys
+secrets
+local-simulation
