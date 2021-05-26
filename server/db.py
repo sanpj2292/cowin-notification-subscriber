@@ -50,6 +50,7 @@ class DBDistrict(Base):
 
 if not database_exists(engine.url):
     create_database(engine.url)
+
 # Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 

@@ -103,7 +103,7 @@ def emailNotifier(dbGen, prevAvailibilitySumDict: Dict[int, int]):
 def notifyAvailabilityByEmail():
     prev = {}
     mailerPwd = getMailerPwd()
-    maxMins = int(os.getenv('MAX_MINUTES', 2))
+    maxMins = float(os.getenv('MAX_MINUTES', 2))
     while True:
         try:
             # emailNotifier(get_db(), prev)
