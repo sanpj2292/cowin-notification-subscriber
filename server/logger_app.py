@@ -23,7 +23,7 @@ def get_logger(logger_name, needFileHandler:bool=False):
    logger.addHandler(get_console_handler())
    now = datetime.now()
    formattedNow = now.strftime("%Y%m%d")
-   output_filename = f'./logs/{logger_name}_{formattedNow}.log'
+   output_filename = f'../server_logs/{logger_name}_{formattedNow}.log'
    os.makedirs(os.path.dirname(output_filename), exist_ok=True)
    if needFileHandler:
       logger.addHandler(get_file_handler(output_filename))

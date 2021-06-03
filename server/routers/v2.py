@@ -1,24 +1,37 @@
 from fastapi import APIRouter, Request, Response, status
 from fastapi.params import Body, Depends
 from sqlalchemy.orm import Session
+from starlette.responses import StreamingResponse
 from models import Subscriber, SubscribeReqModel, SubscriberPincodeModel
-from constants import LOC_BASE_URL, headers
+from constants import LOC_BASE_URL, headers, VAPID_PRIVATE_KEY, VAPID_CLAIMS
 from db import get_states_all, get_db, create_subscriber,\
     get_all_active_subscribers, delete_subscribers,insert_pincode_subscribers,\
     delete_pincode_subscribers, DBSubscriber
+from background_task import notifyAvailabilityByEmail, notifyAvailabilityForStream, notifyAvailabilityV3
+import os
 from typing import List
 import requests
 import json
 from logger_app import get_logger
-
+from pywebpush import webpush, WebPushException
 
 router = APIRouter(
-    prefix="/v2",
+    prefix="/api/v2",
     tags=["v2"],
     responses={ 404: {"description": "Not found"} },
 )
 __name__ = 'V2APIRouter'
 logger = get_logger(__name__, needFileHandler=True)
+
+
+
+def send_web_push(subscription_information, message_body):
+    return webpush(
+        subscription_info=subscription_information,
+        data=message_body,
+        vapid_private_key=VAPID_PRIVATE_KEY,
+        vapid_claims=VAPID_CLAIMS
+    )
 
 @router.get(path='/states')
 def get_states():
@@ -91,8 +104,10 @@ def delete_subscribe(subscribers: List[Subscriber], DB:Session=Depends(get_db)):
 @router.post('/subscribe')
 def subscribe(subscribeReqModel: SubscribeReqModel, response:Response, DB: Session = Depends(get_db)):
     try:
-        logger.info('Subscribe method start')
-        subscriber = Subscriber(**subscribeReqModel.dict(), active=True)
+        logger.info('Subscribe method start -- hotreload check')
+        subscriber = Subscriber(**subscribeReqModel.dict(exclude={'pushNotification'}), active=True)
+        print('Notification details')
+        print(subscribeReqModel.dict())
         isSuccess = create_subscriber(DB, subscriber=subscriber)
         respDict = {
             'isSubscriptionSuccess': isSuccess,
@@ -139,7 +154,7 @@ def pincode_subscribe(subscribers:List[SubscriberPincodeModel], DB:Session = Dep
     try:
         logger.info('Pincode Subscribe method start')
         for sub in subscribers:
-            dbSubs.append(DBSubscriber(**sub.dict(), active=True))
+            dbSubs.append(DBSubscriber(**sub.dict(exclude={'pushNotification'}), active=True))
         isSuccess = insert_pincode_subscribers(DB, dbSubs)
         logKeyword = f'{"Uns" if not isSuccess else "S"}uccessfully'
         logger.info(f'Pincode Subscribe method {logKeyword} ends')
@@ -153,3 +168,26 @@ def pincode_subscribe(subscribers:List[SubscriberPincodeModel], DB:Session = Dep
             'isSubscriptionSuccess': False,
             'message': ex
         }
+
+# @router.get('/stream/subscriptions', response_class=StreamingResponse)
+# def subscription_stream(email:str, DB:Session = Depends(get_db)):
+#     try:
+#         logger.info('Streaming going on')
+#         return StreamingResponse(notifyAvailabilityForStream(email), headers={
+#             'content-type': 'text/event-stream',
+#             'Connection': 'keep-alive',
+#             'X-Accel-Buffering': 'no'
+#         })
+#     except Exception as e:
+#         logger.error('Streaming has exception')
+#         logger.error(e)
+#         return
+
+@router.get('/stream/subscriptions')   
+def subscription_stream(email:str):
+    try:
+        return notifyAvailabilityV3(email)
+    except Exception as e:
+        logger.error('Streaming has exception')
+        logger.error(e)
+        raise

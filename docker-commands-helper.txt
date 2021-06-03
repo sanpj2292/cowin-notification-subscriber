@@ -1,0 +1,83 @@
+blr1
+
+-- initiating the nodes creation
+$ for i in 1 2 3 4; do     docker-machine create --driver digitalocean  --digitalocean-access-token $DIGITAL_OCEAN_TOKEN --digitalocean-region blr1 \
+--engine-install-url "https://releases.rancher.com/install-docker/19.03.9.sh" dock-node-$i; done
+
+
+-- Assign first droplet as leader
+$ docker-machine ssh dock-node-1 -- docker swarm init --advertise-addr $(docker-machine ip dock-node-1)
+-- Join other nodes with leader
+$ for i in 2 3 4; do
+    docker-machine ssh node-$i \
+      -- docker swarm join --token YOUR_JOIN_TOKEN;
+done
+
+-- Go to the leader
+$ eval $(docker-machine env node-1)
+-- Deploy the application
+$ docker stack deploy --compose-file=docker-compose-swarm.yml cowin-sub
+
+-- Kill the droplets
+$ for i in 1 2 3 4; do docker-machine kill dock-node-$i; done
+-- Remove the droplets
+$ for i in 1 2 3 4; do docker-machine rm dock-node-$i; done
+
+
+sankeerth@DESKTOP-GKFK5D4 MINGW64 /e/sankeerth/others/cowin (master)
+$ docker stack ps -f "desired-state=running" cowin-sub
+
+sankeerth@DESKTOP-GKFK5D4 MINGW64 /e/sankeerth/others/cowin (master)
+$ NODE=$(docker service ps -f "desired-state=running" --format "{{.Node}}" cowin-sub_server)
+
+sankeerth@DESKTOP-GKFK5D4 MINGW64 /e/sankeerth/others/cowin (master)
+$ eval $(docker-machine env $NODE)
+
+sankeerth@DESKTOP-GKFK5D4 MINGW64 /e/sankeerth/others/cowin (master)
+$ CONTAINER_ID=$(docker ps --filter name=cowin-sub_server --format "{{.ID}}")
+
+sankeerth@DESKTOP-GKFK5D4 MINGW64 /e/sankeerth/others/cowin (master)
+$ docker container exec -it $CONTAINER_ID bash
+the input device is not a TTY.  If you are using mintty, try prefixing the command with 'winpty'
+
+sankeerth@DESKTOP-GKFK5D4 MINGW64 /e/sankeerth/others/cowin (master)
+$ winpty docker container exec -it $CONTAINER_ID bash
+
+
+------------------------------------------------------------------------------------------------------------
+
+-- go into the AWS EC2 instance & access the terminal
+ssh -i $HOME/.docker/machine/machines/aws-node-1/id_rsa ubuntu@$(docker-machine ip aws-node-1)
+
+docker exec $(docker ps --filter name=redis -q) cat /run/secrets/deep_thought_answer_secure
+
+
+-- To go into docker container named "db-cowin" & start bash, winpty is only needed for windows in git-bash.exe
+winpty docker exec -it db-cowin bash
+
+
+
+------ CMD for postgresql in Docker Container ----------
+
+-- navigate to entrypoint
+ cd docker-entrypoint-initdb.d/
+ 
+ -- authenticate into postgresql
+  psql -U postgres -d cowin_subscribe -a
+ 
+-- Check DBS 
+ \l
+ 
+ --Connect to a particular DBS
+ \c cowin_subscribe
+ 
+ -- Check tables in the particular Tables
+ \dt
+ 
+ -- Check columns in the table
+ \d subscribers
+ 
+ 
+ 
+-- To set permission for docker access in ec2 container created from docker-machine create
+sudo setfacl -m user:your_user_name:rw /var/run/docker.sock

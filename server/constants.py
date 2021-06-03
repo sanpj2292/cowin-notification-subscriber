@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import os
 
 BASE_URL = 'https://cdn-api.co-vin.in/api/v2/appointment'
 LOC_BASE_URL = 'https://cdn-api.co-vin.in/api/v2/admin/location'
@@ -26,3 +27,14 @@ emailPincodeColumns = OrderedDict([
     ('Pincode', 'pincode'), 
     *emailCommonColumns,
 ])
+
+
+DER_BASE64_ENCODED_PRIVATE_KEY_FILE_PATH = os.path.join(os.getcwd(),"../secrets/private_key.txt")
+DER_BASE64_ENCODED_PUBLIC_KEY_FILE_PATH = os.path.join(os.getcwd(),"../secrets/public_key.txt")
+
+VAPID_PRIVATE_KEY = open(DER_BASE64_ENCODED_PRIVATE_KEY_FILE_PATH, "r+").readline().strip("\n")
+VAPID_PUBLIC_KEY = open(DER_BASE64_ENCODED_PUBLIC_KEY_FILE_PATH, "r+").read().strip("\n")
+
+VAPID_CLAIMS = {
+    "sub": "mailto:mailer.cowin@gmail.com"
+}

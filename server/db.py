@@ -2,57 +2,29 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import query, sessionmaker, Session
 from sqlalchemy.sql.expression import or_, and_
 from sqlalchemy.sql.schema import ForeignKey
+from sqlalchemy.dialects.postgresql import BIGINT
 from models import Subscriber, SubscriberPincodeModel, SubscriberAllModel
 from typing import List, Tuple, Union
-from sqlalchemy import Boolean, Column, Float, String, Integer, func, DateTime
+from sqlalchemy import Boolean, Column, Float, String, Integer, func, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 import datetime
 from sqlalchemy_utils.functions import database_exists, create_database
 import os
-
+from dbModels import DBSubscriber, DBState, DBDistrict, DBPushNotification, Base
 # SqlAlchemy Setup
 # SQLALCHEMY_DATABASE_URL = 'sqlite:///./.data/db.sqlite3?check_same_thread=False'
-SQLALCHEMY_DATABASE_URL = f'postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_PASSWORD")}@db:5432/cowin_subscribe'
+SQLALCHEMY_DATABASE_URL = f'postgresql://postgres:{os.getenv("POSTGRES_PASSWORD")}@db:5432/cowin_subscribe'
 engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # SQLALCHEMY_DATABASE_URL = f'postgresql://postgres:{os.getenv("POSTGRES_ACCOUNT_PWD")}@localhost/cowin_subscribe'
-Base = declarative_base()
-
-# A SQLAlchemny ORM Subscribers
-class DBSubscriber(Base):
-    __tablename__ = 'subscribers'
-
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(50), index=True)
-    search_type=Column(String(5), index=True, default="STDIS")
-    pincode = Column(Integer)
-    min_age = Column(Integer, default=0)
-    district_id = Column(Integer, ForeignKey('districts.district_id'))
-    state_id = Column(Integer, ForeignKey('states.state_id'))
-    active = Column(Boolean)
-    created_date = Column(DateTime, default=datetime.datetime.now())
-    
-class DBState(Base):
-    __tablename__ = "states"
-    
-    state_id = Column(Integer, primary_key=True, index=True, autoincrement=False)
-    state_name = Column(String(100), index=True)
-    created_date = Column(DateTime, default=datetime.datetime.now())
-
-class DBDistrict(Base):
-    __tablename__ = 'districts'
-    
-    district_id = Column(Integer, primary_key=True, index=True, autoincrement=False)
-    state_id = Column(Integer, ForeignKey('states.state_id'), index=True)
-    district_name = Column(String(100), index=True)
-    created_date = Column(DateTime, default=datetime.datetime.now())
+#S omething here
 
 if not database_exists(engine.url):
     create_database(engine.url)
 
 # Base.metadata.drop_all(bind=engine)
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = SessionLocal()
@@ -78,6 +50,7 @@ def create_subscriber(db: Session, subscriber : Subscriber) -> DBSubscriber:
         db.add(db_subscriber)
         db.commit()
         db.refresh(db_subscriber)
+        print(db_subscriber.id)
         return True
     else:
         return False

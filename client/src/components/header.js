@@ -16,12 +16,17 @@ const Header = props => {
     return (
         <AppBar position='static'>
             <Toolbar variant='regular'>
-                <Grid container alignContent='center' justify='space-between'>
+                <Grid container alignContent='center' >
                     <Link to='/' className={classes.linkText}>
-                        CoWin Notification Subscriber
+                        CoWin Notifier
                     </Link>
-                    <Link to='/subscriptions' className={classes.linkText}>
-                        Subscriptions
+                </Grid>
+                <Grid container alignContent='center' justify='flex-end'>
+                    <Link to='/subscriptions' className={classes.linkText} style={{paddingRight: 24}}>
+                        Subscription
+                    </Link>
+                    <Link to='/stream/subscriptions' className={classes.linkText}>
+                        Real-time Subscriptions
                     </Link>
                 </Grid>
         </Toolbar>

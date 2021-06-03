@@ -3,6 +3,7 @@ import { Container, Grid, TextField, FormControlLabel, Radio, RadioGroup,
 MenuItem, Select, FormControl, InputLabel, Button, Box, Paper, CardMedia, Card, CardContent, CardActions, Backdrop, CircularProgress, IconButton, Snackbar, FormLabel } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import CloseIcon from '@material-ui/icons/Close';
+import { isPushNotificationSupported, registerServiceWorker, pushServerPublicKey } from '../serviceWorker';
 
 const useStyles = makeStyles(theme => ({
     formControl: {
@@ -89,6 +90,8 @@ const EmailSubscribe = props => {
         .then(res => res.json())
         .then(res => {
             setStates(res.states);
+
+            
         })
         .catch(e => {
             console.error(e);
@@ -98,7 +101,16 @@ const EmailSubscribe = props => {
             });
         })
         .finally(() => {
-            setBackdrop(false);
+            if (isPushNotificationSupported) {
+                registerServiceWorker().then(() => {
+                    setBackdrop(false);
+                }).catch(e => {
+                    console.error('Error in ServiceWorker Registration');
+                    console.error(e);
+                });
+            } else {
+                setBackdrop(false);
+            }
         });
     }, []);
 
@@ -129,11 +141,17 @@ const EmailSubscribe = props => {
     const onSubscribeClick = async () => {
         try {
             setBackdrop(true);
+            let sw = await navigator.serviceWorker.ready;
+            let push = await sw.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: pushServerPublicKey,//TODO: Public key for push notifications
+            });
             let body = {
                 email,
                 state_id: state,
                 district_id: district,
-                min_age: Number(minAge)
+                min_age: Number(minAge),
+                pushNotification: push,
             };
             let url = '/api/v2/subscribe';
             if (searchType === "PINCD") {
@@ -145,11 +163,13 @@ const EmailSubscribe = props => {
                         email,
                         search_type: searchType,
                         pincode: Number(p.trim()),
+                        pushNotification: push,
                         min_age: Number(minAge)
                     };
                 });
                 url = '/api/v2/pincode/subscribe';
             }
+            console.log(body.pushNotification);
             const resp = await fetch(url, {
                 method: 'POST',
                 headers: {

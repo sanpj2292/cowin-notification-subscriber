@@ -18,6 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from random import randint, uniform
 from jinja2 import Environment, FileSystemLoader, escape
 import htmlmin
+import json
 
 logger = get_logger(__name__, needFileHandler=True)
 
@@ -191,12 +192,10 @@ def emailNotifierV2(dbGen, prevAvailabilitySumDict: Dict[str, Dict[str, Dict[int
             isChange = False
             if email not in prevAvailabilitySumDict:
                 prevAvailabilitySumDict[email] = sT
-                dataCollectDict[email] = sT
                 isChange = True
             elif searchType not in prevAvailabilitySumDict[email]:
                 prevAvailabilitySumDict[email] = {**prevAvailabilitySumDict[email], **sT }
                 isChange = True
-                dataCollectDict[email] = { **dataCollectDict[email], **sT }
             elif param not in prevAvailabilitySumDict[email][searchType] or (
                 param in prevAvailabilitySumDict[email][searchType] and 
                 prevAvailabilitySumDict[email][searchType][param]['availabilitySum'] != availableSum
@@ -211,10 +210,10 @@ def emailNotifierV2(dbGen, prevAvailabilitySumDict: Dict[str, Dict[str, Dict[int
                 if email not in dataCollectDict:
                     dataCollectDict[email] = sT
                 elif searchType not in dataCollectDict[email]:
-                    dataCollectDict[email] = {**dataCollectDict[email], **sT }
+                    dataCollectDict[email] = {**prevAvailabilitySumDict[email], **sT }
                 else:
                     dataCollectDict [email][searchType] = {
-                        **dataCollectDict.get(email, {}).get(searchType, {}), 
+                        **prevAvailabilitySumDict.get(email, {}).get(searchType, {}), 
                         **sT.get(searchType)
                     }
         # logger.debug(prevAvailabilitySumDict)
@@ -245,81 +244,6 @@ def prepareEmailContent(emailSearchTypeParamsDict:Dict[str, Dict[str, Dict[int, 
         )
         # escapedHtmlStr = str(escape(outHtml))
         contentDict[email] = htmlmin.minify(outHtml, remove_empty_space=True)
-        # availabilityContent = ''
-        
-        # pincodes = []
-        # if searchTypeDict.get("PINCD") is not None:
-        #     # pincodes = '\n'.join([f'<td>{p}</td><td>{av}</td>' for p, av in searchTypeDict["PINCD"].items()])
-        #     pincodes = '\n'.join([f'<tr><td>{p}</td><td>{av}</td></tr>' for p, av in searchTypeDict["PINCD"].items()])
-        #     availabilityContent += 'Pincodes Availability:\n' + pincodes
-        # pincodeTable = f'''
-        #     <br>
-        #     <table style="border: black 0.5px;">
-        #         <thead>
-        #             <tr>
-        #                 <th>Pincode</th>
-        #                 <th>Availability</th>
-        #             </tr>
-        #         </thead>
-        #         <tbody>
-        #             {pincodes}
-        #         </tbody>
-        #     </table>
-        # ''' if len (pincodes) > 0 else ''
-        
-        # districts = []
-        # if searchTypeDict.get("STDIS") is not None:
-        #     db = next(get_db())
-        #     disList = []
-        #     for d,av in searchTypeDict["STDIS"].items():
-        #         dDict = get_dis_state_nm(db, d)
-        #         # disList.append(f"{dDict['district_name']}, {dDict['state_name']}: {av}")
-        #         disList.append(f"<tr><td>{dDict['district_name']}</td><td>{dDict['state_name']}</td><td>{av}</td></tr>")
-        #     districts = '\n'.join(disList)
-        #     availabilityContent += '\n\n' if availabilityContent else '' + 'District Availability:\n' + districts
-        
-        # disTable = f'''
-        #     <br>
-        #     <table style="border: black 0.5px;">
-        #         <thead>
-        #             <tr>
-        #                 <th>District</th>
-        #                 <th>State</th>
-        #                 <th>Availability</th>
-        #             </tr>
-        #         </thead>
-        #         <tbody>
-        #             {districts}
-        #         </tbody>
-        #     </table>
-        # ''' if len(districts) > 0 else ''
-        
-        
-        # contentDict[email] = f'''
-        # <html lang="en">
-        # <head>
-        #     <meta charset="UTF-8">
-        #     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        #     <style type="text/css" media="screen">
-                               
-        #         table, th, td {{ border: 1px solid black; border-collapse: collapse; }}
-        #         th, td {{ padding: 2px; }}
-
-        #     </style>
-        # </head>
-        # <body>
-        #     <p>
-        #         Hi,<br>
-        #         This is an automated message from CoWin Notification Service.<br>
-        #         Currently some windows are open for vaccination scheduling.<br>
-        #         Hurry up and book your slots.
-        #     </p>
-        #     {disTable + pincodeTable}
-        #     <p><strong>Note</strong>: Please do not reply to this mailer.</p>
-        # </body>
-        # </html>
-        # '''
-        
     return contentDict
 
 
@@ -350,3 +274,72 @@ def sendEmailV2(emailSubDict:Dict[str, str], mailerPwd: str):
                     del message['To']
     else:
         logger.info('Currently there are no emails to be sent due to no change in availability')
+ 
+prevAvail = {}
+def notifyAvailabilityV3(email:str):
+    emailDataDict = emailNotifierV2(get_db(), prevAvail)
+    notifyEmailDict = preparePushNotificationContent(emailDataDict)
+    return { 
+        # 'emailDataDict': emailDataDict,
+        **notifyEmailDict.get(email, {}),
+    }
+
+def notifyAvailabilityForStream(email:str):
+    prev = {}
+    mailerPwd = getMailerPwd()
+    maxMins = float(os.getenv('MAX_MINUTES', 2))
+    while True:
+        try:
+            # emailNotifier(get_db(), prev)
+            emailDataDict = emailNotifierV2(get_db(), prev)
+            notifyEmailDict = preparePushNotificationContent(emailDataDict)
+            yield json.dumps({ 
+                # 'emailDataDict': emailDataDict,
+                **notifyEmailDict.get(email, {}),
+            }, indent=2).encode('utf-8')
+            mins = uniform(1, maxMins)
+            round_mins = round(mins, 3)
+            sleepTimeInSecs = uniform(1, 1*round_mins)
+            logger.info(f'Going to sleep... for {sleepTimeInSecs}s')
+            time.sleep(sleepTimeInSecs)
+        except Exception as ex:
+            logger.error('Error in notifyAvailabilitybyPush while loop')
+            logger.error(ex, exc_info=True)
+            # mins = uniform(1, maxMins)
+            # round_mins = round(mins, 3)
+            # sleepTimeInSecs = uniform(60, 60*round_mins)
+            # logger.info(f'Going to sleep... for {sleepTimeInSecs}s')
+            # time.sleep(sleepTimeInSecs)
+        finally:
+            # shortening the time & introducing more randomization
+            pass
+            
+def preparePushNotificationContent(emailSearchTypeParamsDict:Dict[ str, Dict[ str, Dict[str, Union[int, List[any]] ] ] ]) -> Dict[str, List[str]]:
+    contentDict = {}
+    
+    for email, searchTypeDict in emailSearchTypeParamsDict.items():
+        pincodes = []
+        districts = []
+        disSessions = []
+        pinSessions = []
+        for _, availDict in searchTypeDict.get("PINCD", {}).items():
+            if 'sessions' in availDict:
+                pincodes.append(availDict['sessions'][0]['pincode'])
+                pinSessions.extend(availDict['sessions'])
+
+        for _, availDict in searchTypeDict.get("STDIS", {}).items():
+            if 'sessions' in availDict:
+                sessions = availDict['sessions']
+                logger.info('Sessions')
+                logger.info(sessions)
+                dist = sessions[0]['district_name']
+                st = sessions[0]['state_name']
+                districts.append(f'{dist}, {st}')
+                disSessions.extend(sessions)
+        contentDict[email] = {
+            'pincodes': pincodes,
+            'districts': districts,
+            'PINCD': pinSessions,
+            'STDIS': disSessions,
+        }
+    return contentDict

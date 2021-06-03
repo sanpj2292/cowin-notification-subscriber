@@ -2,9 +2,14 @@ version: "3"
 services:
     client:
         container_name: client-sub
-        build: ./client
+        build: 
+            context: ./client
+            args:
+                - env=development
+        restart: always
         depends_on:
             - db
+            - pgadmin
             - server
         volumes:
             - ./client:/usr/cowin/client
@@ -13,7 +18,8 @@ services:
         networks:
             - cowin_sub_network
         environment:
-            NODE_ENV: production
+            - NODE_ENV=production
+            - CHOKIDAR_USEPOLLING="true"
     server:
         container_name: server-cowin
         build: ./server
@@ -22,9 +28,10 @@ services:
         ports:
             - 4200:4200
         restart: always
-        # command: ["python", "app.py"]
+        command: bash -c "alembic upgrade head && python app.py"
         volumes:
             - ./server:/usr/cowin/server
+            - ./secrets:/usr/src/app/secrets
         depends_on:
             db:
                 condition: service_healthy
@@ -50,6 +57,19 @@ services:
             interval: 1s
             timeout: 5s
             retries: 5
+    pgadmin:
+        image: dpage/pgadmin4
+        container_name: cowin-pgadmin
+        environment:
+            - PGADMIN_DEFAULT_EMAIL=pgadmin4@pgadmin.org
+            - PGADMIN_DEFAULT_PASSWORD=admin
+            - PGADMIN_LISTEN_PORT=5050
+        ports:
+            - 5050:5050
+        depends_on:
+            - db
+        networks:
+            - cowin_sub_network
 
 networks:
     cowin_sub_network:

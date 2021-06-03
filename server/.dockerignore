@@ -1,4 +1,4 @@
-cowin-env
+cowin-env/*
 .data
 logs
 *.log
