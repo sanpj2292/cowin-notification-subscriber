@@ -64,10 +64,17 @@ const SubscriptionAvailability = props => {
         }
 
         interval = setInterval(async () => {
-            let r = await fetch(`/api/v2/stream/subscriptions?email=${email}`);
-            let res = await r.json()
-            console.log('Fetching stream subscriptions')
-            console.log(res);
+            try {
+                let r = await fetch(`/api/v2/stream/subscriptions?email=${email}`);
+                let res = await r.json()
+                console.log('Fetching stream subscriptions')
+                console.log(res);
+            } catch (error) {
+                setMessage({
+                    open: true,
+                    msg: 'Error occurred in streaming'
+                });
+            }
         }, ( () => {
             let randNum = randomNum(3, 1);
             return randNum * 1000;

@@ -112,7 +112,7 @@ def notifyAvailabilityByEmail():
             emailContentDict = prepareEmailContent(emailDataDict)
             sendEmailV2(emailContentDict, mailerPwd)
         except Exception as ex:
-            logger.error('Error in notifyAvailability while loop')
+            logger.error('Error in notifyAvailabilityByEmail:')
             logger.error(ex)
         finally:
             # shortening the time & introducing more randomization
